@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Neo4j.AspNet.Identity
 {
@@ -40,10 +41,13 @@ namespace Neo4j.AspNet.Identity
 
         public virtual string Email { get; set; }
 
+        [JsonIgnore]
         public virtual List<string> Roles { get; set; }
 
+        [JsonIgnore]
         public virtual List<IdentityUserClaim> Claims { get; set; }
 
+        [JsonIgnore]
         public virtual List<UserLoginInfo> Logins { get; set; }
     }
 }

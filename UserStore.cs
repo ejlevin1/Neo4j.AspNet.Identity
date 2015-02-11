@@ -51,11 +51,18 @@ namespace Neo4j.AspNet.Identity
         public Task AddLoginAsync(TUser user, UserLoginInfo login)
         {
             ThrowIfDisposed();
-            if (user == null)
+            if (user == null || user.Id == null)
                 throw new ArgumentNullException("user");
 
             if (!user.Logins.Any(x => x.LoginProvider == login.LoginProvider && x.ProviderKey == login.ProviderKey))
             {
+                db.Cypher
+                    .Match("(u:User)")
+                    .Where((TUser u) => u.Id == user.Id)
+                    .Create("u-[:HAS_LOGIN]->(uli:UserLoginInfo {login})")
+                    .WithParam("login", login)
+                    .ExecuteWithoutResults();
+
                 user.Logins.Add(login);
             }
 
@@ -64,7 +71,20 @@ namespace Neo4j.AspNet.Identity
 
         public Task<TUser> FindAsync(UserLoginInfo login)
         {
-            throw new NotImplementedException();
+            ThrowIfDisposed();
+            if (login == null)
+                throw new ArgumentNullException("login");
+
+            var user = db.Cypher
+                .Match("(uli:UserLoginInfo)<-[:HAS_LOGIN]-(u)")
+                .Where(
+                    (UserLoginInfo uli) =>
+                        uli.ProviderKey == login.ProviderKey && uli.LoginProvider == login.LoginProvider)
+                .Return(u => u.As<TUser>())
+                .Results
+                .FirstOrDefault();
+
+            return Task.FromResult(user);
         }
 
         public Task<IList<UserLoginInfo>> GetLoginsAsync(TUser user)
@@ -94,20 +114,27 @@ namespace Neo4j.AspNet.Identity
                 throw new ArgumentNullException("user");
 
             user.Id = Guid.NewGuid().ToString();
-            //db.GetCollection<TUser>(collectionName).Insert(user);
 
             db.Cypher.Create("(u:User { user })")
                                       .WithParams(new { user })
                                       .ExecuteWithoutResults();
-
-
 
             return Task.FromResult(user);
         }
 
         public Task DeleteAsync(TUser user)
         {
-            throw new NotImplementedException();
+            ThrowIfDisposed();
+            if (user == null || user.Id == null)
+                throw new ArgumentNullException("user");
+
+            db.Cypher
+                .Match("(u:User)")
+                .Where((TUser u) => u.Id == user.Id)
+                .Delete("u")
+                .ExecuteWithoutResults();
+
+            return Task.FromResult(0);
         }
 
         public Task<TUser> FindByIdAsync(string userId)
@@ -121,7 +148,6 @@ namespace Neo4j.AspNet.Identity
                       .Results
                       .SingleOrDefault();
 
-            //   TUser user = db.GetCollection<TUser>(collectionName).FindOne((Query.EQ("_id", ObjectId.Parse(userId))));
             return Task.FromResult(user);
         }
 
@@ -134,16 +160,25 @@ namespace Neo4j.AspNet.Identity
                         .Where((TUser u) => u.UserName == userName)
                         .Return(u => u.As<TUser>())
                         .Results
-                        .SingleOrDefault();
+                        .FirstOrDefault();
 
-
-            // TUser user = db.GetCollection<TUser>(collectionName).FindOne((Query.EQ("UserName", userName)));
             return Task.FromResult(user);
         }
 
         public Task UpdateAsync(TUser user)
         {
-            throw new NotImplementedException();
+            ThrowIfDisposed();
+            if (user == null || user.Id == null)
+                throw new ArgumentNullException("user");
+
+            db.Cypher
+                .Match("(u:User)")
+                .Where((TUser u) => u.Id == user.Id)
+                .Set("u = {user}")
+                .WithParam("user", user)
+                .ExecuteWithoutResults();
+
+            return Task.FromResult(user);
         }
 
         public void Dispose()
